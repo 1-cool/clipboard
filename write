@@ -1,53 +1,110 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <Windows.h>
+#include "stdio.h"
+#include "windows.h"
 
-int main(int argc, char * argv[])
+//将字符串放到剪切板
+int AppendBufferToClipboard( char *cBuffer, int nSize )
 {
- HGLOBAL hMemory;
- LPTSTR lpMemory;
- char * content = "蓝雨麦郎版权所有";   // 待写入数据
- int contentSize = strlen(content) + 1;
+	HGLOBAL hClipboard = NULL;
+	char *pClipBuf = NULL;
 
- if(!OpenClipboard(NULL))    // 打开剪切板，打开后，其他进程无法访问
- {
-  puts("剪切板打开失败");
-  return 1;
- }
+	if( OpenClipboard( NULL ) )
+	{ 
+		hClipboard = GlobalAlloc( GMEM_DDESHARE, nSize+1 );
+		pClipBuf = (char*)GlobalLock(hClipboard);
+		memset( pClipBuf, 0, nSize+1 );
+		memcpy( pClipBuf, cBuffer, nSize );
+		GlobalUnlock( hClipboard );
+		SetClipboardData( CF_TEXT, hClipboard );
+		CloseClipboard();
+	}
+	else
+	{
+		return -1;
+	}
 
- if(!EmptyClipboard())       // 清空剪切板，写入之前，必须先清空剪切板
- {
-  puts("清空剪切板失败");
-  CloseClipboard();
-  return 1;
- }
+	return 0;
+}
 
- if((hMemory = GlobalAlloc(GMEM_MOVEABLE, contentSize)) == NULL)    // 对剪切板分配内存
- {
-  puts("内存赋值错误!!!");
-  CloseClipboard();
-  return 1;
- }
+//从剪切板获取字符串
+int GetBufferFromClipboard( char *cBuffer, int nMaxSize )
+{
+	int nNeedSize = 0;
+	HANDLE hClipboard = NULL;
+	char *pClipBuf = NULL;
 
- if((lpMemory = (LPTSTR)GlobalLock(hMemory)) == NULL)             // 将内存区域锁定
- {
-  puts("锁定内存错误!!!");
-  CloseClipboard();
-  return 1;
- }
+	if ( OpenClipboard( NULL ) )
+	{
+		hClipboard = GetClipboardData( CF_TEXT );
+		nNeedSize = GlobalSize( hClipboard );
+		if ( nNeedSize > nMaxSize+1 )
+		{
+			return -1;
+		}
 
- memcpy_s(lpMemory, contentSize, content, contentSize);   // 将数据复制进入内存区域
+		pClipBuf = (char*)GlobalLock( hClipboard );
+		memset( cBuffer, 0, nMaxSize );
+		memcpy( cBuffer, pClipBuf, nNeedSize );
+		GlobalUnlock( hClipboard );
+		CloseClipboard();
 
- GlobalUnlock(hMemory);                   // 解除内存锁定
+		return nNeedSize;
 
- if(SetClipboardData(CF_TEXT, hMemory) == NULL)
- {
-  puts("设置剪切板数据失败!!!");
-  CloseClipboard();
-  return 1;
- }
+	}
+	else
+	{
+		return 0;
+	}
 
- system("pause");
- return 0;
+	return -1;
+}
+
+//清空剪切板
+int ClearClipboradBuffer()
+{
+	HGLOBAL hClipboard = NULL;
+
+	if( OpenClipboard( NULL ) )
+	{ 
+		hClipboard = GetClipboardData( CF_TEXT );
+		GlobalFree( hClipboard );
+		EmptyClipboard();
+		CloseClipboard();
+		return 0;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+int main( int argc, char *argv[] )
+{
+	char cTest[ 512 ]={ 0 };
+	char cClip[ 512 ] = { 0 };
+	int nRet = 0;
+
+	nRet = sprintf( cTest, "argc = %d, path = %s", argc, argv[0] );
+	printf( "%s \n", cTest );
+	ClearClipboradBuffer();
+
+	if( AppendBufferToClipboard( cTest, nRet ) )
+	{
+		printf( "Failed append buffer to clipboard. \n" );
+		return 0;
+	}
+
+	printf( "Now open notepad and press Ctrl + V to show buffer in clipboard.\n" );
+	printf( "And press any key to exit.\n" );
+
+	getchar();
+
+	nRet = GetBufferFromClipboard( cClip, 512 );
+	printf( "Get Buffer From Clipboard, nRet = %d, buf = %s \n", nRet, cClip );
+
+	ClearClipboradBuffer();
+
+	nRet = GetBufferFromClipboard( cClip, 512 );
+	printf( "Get Buffer From Clipboard again, nRet = %d, buf = %s \n", nRet, cClip );
+
+	return 0;
 }
