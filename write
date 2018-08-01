@@ -1,110 +1,219 @@
 #include "stdio.h"
+
 #include "windows.h"
 
+
+
 //将字符串放到剪切板
+
 int AppendBufferToClipboard( char *cBuffer, int nSize )
+
 {
+
 	HGLOBAL hClipboard = NULL;
+
 	char *pClipBuf = NULL;
 
-	if( OpenClipboard( NULL ) )
+
+
+	if( OpenClipboard( NULL ) )			 // 打开剪切板
+
 	{ 
-		hClipboard = GlobalAlloc( GMEM_DDESHARE, nSize+1 );
-		pClipBuf = (char*)GlobalLock(hClipboard);
+
+		hClipboard = GlobalAlloc( GMEM_DDESHARE, nSize+1 );		 // 分配一个内存对象 第二个参数 字节数 
+
+		pClipBuf = (char*)GlobalLock(hClipboard);		// 加锁
+
 		memset( pClipBuf, 0, nSize+1 );
+
 		memcpy( pClipBuf, cBuffer, nSize );
-		GlobalUnlock( hClipboard );
-		SetClipboardData( CF_TEXT, hClipboard );
-		CloseClipboard();
+
+		GlobalUnlock( hClipboard );				// 解锁
+
+		SetClipboardData( CF_TEXT, hClipboard );		// 写入数据
+
+		CloseClipboard();				// 关闭剪切板
+
 	}
+
 	else
+
 	{
+
 		return -1;
+
 	}
+
+
 
 	return 0;
+
 }
 
+
+
 //从剪切板获取字符串
+
 int GetBufferFromClipboard( char *cBuffer, int nMaxSize )
+
 {
+
 	int nNeedSize = 0;
+
 	HANDLE hClipboard = NULL;
+
 	char *pClipBuf = NULL;
 
-	if ( OpenClipboard( NULL ) )
+
+
+	if ( OpenClipboard( NULL ) )		 // 打开剪切板
+
 	{
-		hClipboard = GetClipboardData( CF_TEXT );
+
+		hClipboard = GetClipboardData( CF_TEXT );		// 获取字符串类型的剪切板数据
+
 		nNeedSize = GlobalSize( hClipboard );
+
 		if ( nNeedSize > nMaxSize+1 )
+
 		{
+
 			return -1;
+
 		}
 
-		pClipBuf = (char*)GlobalLock( hClipboard );
+
+
+		pClipBuf = (char*)GlobalLock( hClipboard );		// 加锁
+
 		memset( cBuffer, 0, nMaxSize );
+
 		memcpy( cBuffer, pClipBuf, nNeedSize );
-		GlobalUnlock( hClipboard );
-		CloseClipboard();
+
+		GlobalUnlock( hClipboard );		// 解锁
+
+		CloseClipboard();		// 关闭剪切板
+
+
 
 		return nNeedSize;
 
+
+
 	}
+
 	else
+
 	{
+
 		return 0;
+
 	}
+
+
 
 	return -1;
+
 }
+
+
 
 //清空剪切板
+
 int ClearClipboradBuffer()
+
 {
+
 	HGLOBAL hClipboard = NULL;
 
-	if( OpenClipboard( NULL ) )
+
+
+	if( OpenClipboard( NULL ) )		// 打开剪切板
+
 	{ 
-		hClipboard = GetClipboardData( CF_TEXT );
+
+		hClipboard = GetClipboardData( CF_TEXT );		// 获取字符串类型的剪切板数据
+
 		GlobalFree( hClipboard );
-		EmptyClipboard();
-		CloseClipboard();
+
+		EmptyClipboard();		// 清空剪切板 并释放剪切板中数据的句柄 把剪切板的所有权赋给当前窗口
+
+		CloseClipboard();	// 关闭剪切板
+
 		return 0;
+
 	}
+
 	else
+
 	{
+
 		return -1;
+
 	}
+
 }
 
+
+
 int main( int argc, char *argv[] )
+
 {
+
 	char cTest[ 512 ]={ 0 };
+
 	char cClip[ 512 ] = { 0 };
+
 	int nRet = 0;
 
-	nRet = sprintf( cTest, "argc = %d, path = %s", argc, argv[0] );
-	printf( "%s \n", cTest );
-	ClearClipboradBuffer();
 
-	if( AppendBufferToClipboard( cTest, nRet ) )
+
+	nRet = sprintf( cTest, "argc = %d, path = %s", argc, argv[0] );		//显示函数个数、文件位置，nRet为内容长度
+
+	printf( "%s \n", cTest );
+
+	ClearClipboradBuffer();		//清空剪贴板
+
+
+
+	if( AppendBufferToClipboard( cTest, nRet ) ) 		//写入剪贴板
+
 	{
+
 		printf( "Failed append buffer to clipboard. \n" );
+
 		return 0;
+
 	}
 
+
+
 	printf( "Now open notepad and press Ctrl + V to show buffer in clipboard.\n" );
+
 	printf( "And press any key to exit.\n" );
+
+
 
 	getchar();
 
-	nRet = GetBufferFromClipboard( cClip, 512 );
+
+
+	nRet = GetBufferFromClipboard( cClip, 512 );		//读取剪贴板，nRet为内容长度
+
 	printf( "Get Buffer From Clipboard, nRet = %d, buf = %s \n", nRet, cClip );
 
-	ClearClipboradBuffer();
 
-	nRet = GetBufferFromClipboard( cClip, 512 );
+
+	ClearClipboradBuffer();			//清空剪贴板
+
+
+
+	nRet = GetBufferFromClipboard( cClip, 512 );		//读取剪贴板，nRet为内容长度
+
 	printf( "Get Buffer From Clipboard again, nRet = %d, buf = %s \n", nRet, cClip );
 
+
+
 	return 0;
+
 }
